@@ -1,34 +1,54 @@
 use std::env;
 use std::io;
+use std::io::Write;
 use std::process;
 
-fn match_pattern(input_line: &str, pattern: &str) -> bool {
-    if pattern.chars().count() == 1 {
-        return input_line.contains(pattern);
-    } else {
-        panic!("Unhandled pattern: {}", pattern)
+fn match_pattern(input: &str, pattern: &str) -> bool {
+    match pattern {
+        pattern if pattern.len() == 1 => {
+            return input.contains(pattern);
+        },
+        r"\d" => {
+            for c in input.chars() {
+                if c.is_digit(10) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        _ => panic!("Unhandled pattern: {}", pattern),
     }
 }
 
 // Usage: echo <input_text> | your_grep.sh -E <pattern>
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = env::args().collect::<Vec<_>>();
+
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
 
-    if env::args().nth(1).unwrap() != "-E" {
-        println!("Expected first argument to be '-E'");
-        process::exit(1);
+    if args.get(1).ok_or("Missing flag argument")? != "-E" {
+        return Err("Expected first argument to be '-E'".into());
     }
+    
+    let pattern = args.get(2).ok_or("Missing pattern argument")?;
 
-    let pattern = env::args().nth(2).unwrap();
-    let mut input_line = String::new();
-
-    io::stdin().read_line(&mut input_line).unwrap();
+    let input = get_input("")?;
 
     // Uncomment this block to pass the first stage
-    if match_pattern(&input_line, &pattern) {
-        process::exit(0)
+    if match_pattern(&input, &pattern) {
+        Ok(())
     } else {
-        process::exit(1)
+        Err("pattern not in input".into())
     }
+}
+
+pub fn get_input(prompt: &str) -> Result<String, io::Error> {
+    io::stdout().write(prompt.as_bytes())?;
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    Ok(input.trim().to_owned())
 }
